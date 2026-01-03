@@ -1,23 +1,204 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GitHub Pages OK</title>
-  <style>
-    body {
-      background:#0b1220;
-      color:#00ff88;
-      font-family: Arial, sans-serif;
-      display:flex;
-      justify-content:center;
-      align-items:center;
-      height:100vh;
-      margin:0;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZYREX EXECUTOR</title>
+
+<style>
+*{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif}
+body{
+margin:0;
+min-height:100vh;
+background:linear-gradient(180deg,#050b1e,#020617);
+color:#fff;
+display:flex;
+justify-content:center;
+align-items:center;
+padding:20px
+}
+.container{width:100%;max-width:420px}
+.card{
+background:#020617;
+border-radius:18px;
+padding:20px;
+margin-bottom:20px;
+box-shadow:0 0 30px rgba(0,0,0,.6)
+}
+h2{text-align:center;margin-bottom:15px}
+input,button{
+width:100%;
+padding:14px;
+margin-top:10px;
+border-radius:12px;
+border:none;
+outline:none;
+font-size:15px
+}
+input{background:#020617;color:#fff;border:1px solid #1e293b}
+button{cursor:pointer;font-weight:bold}
+.unlock{background:#2563eb;color:#fff}
+.start{background:#22c55e}
+.stop{background:#ef4444}
+.adminBtn{background:#9333ea}
+.status{text-align:center;margin-top:10px;font-weight:bold}
+.valid{color:#22c55e}
+.invalid{color:#ef4444}
+.hidden{display:none}
+
+.toast{
+position:fixed;
+bottom:25px;
+left:50%;
+transform:translateX(-50%);
+background:#020617;
+border:1px solid #1e293b;
+padding:12px 18px;
+border-radius:12px;
+display:none;
+font-weight:bold
+}
+</style>
 </head>
+
 <body>
-  <h1>🔥 GITHUB PAGES HIDUP 🔥</h1>
+<div class="container">
+
+<!-- KEY SYSTEM -->
+<div class="card">
+<h2>🔐 Key System</h2>
+<input id="keyInput" placeholder="Masukkan Key">
+<button class="unlock" onclick="login()">UNLOCK</button>
+<div id="keyStatus" class="status"></div>
+<div id="expireInfo" class="status"></div>
+</div>
+
+<!-- EXECUTOR -->
+<div class="card hidden" id="executor">
+<h2>🚀 Executor</h2>
+<input id="webhook" placeholder="Webhook URL">
+<input id="message" placeholder="Pesan">
+<input id="delay" type="number" value="2000">
+<button class="start" onclick="start()">START</button>
+<button class="stop" onclick="stop()">STOP</button>
+<div id="runStatus" class="status">OFF</div>
+</div>
+
+<!-- ADMIN -->
+<div class="card">
+<h2>🛠 Admin Panel</h2>
+<input id="adminPass" placeholder="Admin Password">
+<button class="adminBtn" onclick="adminLogin()">LOGIN</button>
+
+<div id="adminPanel" class="hidden">
+<input id="newKey" placeholder="Key baru">
+<input id="days" type="number" placeholder="Expired (hari)">
+<button class="unlock" onclick="createKey()">CREATE KEY</button>
+<div id="adminStatus" class="status"></div>
+</div>
+</div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ================= CONFIG =================
+const ADMIN_PASSWORD = "admin123"; 
+const KEY_URL = "https://raw.githubusercontent.com/imdeyz404-7/Spammwebhookdiscord/main/keys.json";
+// GANTI ^ DENGAN URL RAW keys.json KAMU
+// ==========================================
+
+let keysData=[];
+let interval=null;
+
+// Toast
+function toast(msg){
+const t=document.getElementById("toast");
+t.innerText=msg;
+t.style.display="block";
+setTimeout(()=>t.style.display="none",2500)
+}
+
+// Load keys
+async function loadKeys(){
+const res=await fetch(KEY_URL+"?t="+Date.now());
+const data=await res.json();
+keysData=data.keys;
+}
+loadKeys();
+
+// Login key
+function login(){
+const key=document.getElementById("keyInput").value.trim();
+const now=new Date();
+
+const found=keysData.find(k=>k.key===key);
+if(!found){
+document.getElementById("keyStatus").innerHTML="<span class='invalid'>KEY INVALID</span>";
+toast("Key tidak valid");
+return;
+}
+
+const exp=new Date(found.expire+"T23:59:59");
+const diff=Math.ceil((exp-now)/(1000*60*60*24));
+
+if(diff<=0){
+document.getElementById("keyStatus").innerHTML="<span class='invalid'>KEY EXPIRED</span>";
+document.getElementById("expireInfo").innerText="Expired: "+found.expire;
+toast("Key expired");
+return;
+}
+
+document.getElementById("keyStatus").innerHTML="<span class='valid'>KEY VALID</span>";
+document.getElementById("expireInfo").innerText=`Expired: ${found.expire} (${diff} hari lagi)`;
+document.getElementById("executor").classList.remove("hidden");
+toast("Login berhasil");
+}
+
+// Executor
+function start(){
+if(interval) return;
+document.getElementById("runStatus").innerText="RUNNING";
+interval=setInterval(()=>{
+console.log("Send webhook (simulasi)");
+},Number(document.getElementById("delay").value));
+toast("Executor started");
+}
+function stop(){
+clearInterval(interval);
+interval=null;
+document.getElementById("runStatus").innerText="OFF";
+toast("Executor stopped");
+}
+
+// Admin
+function adminLogin(){
+const pass=document.getElementById("adminPass").value;
+if(pass!==ADMIN_PASSWORD){
+toast("Password admin salah");
+return;
+}
+document.getElementById("adminPanel").classList.remove("hidden");
+toast("Admin login sukses");
+}
+
+function createKey(){
+const key=document.getElementById("newKey").value.trim();
+const days=Number(document.getElementById("days").value);
+if(!key||!days){
+toast("Data belum lengkap");
+return;
+}
+const d=new Date();
+d.setDate(d.getDate()+days);
+const exp=d.toISOString().split("T")[0];
+
+toast("KEY DIBUAT ✔️");
+document.getElementById("adminStatus").innerText=`Key: ${key} | Expired: ${exp}
+
+SALIN & TAMBAHKAN KE keys.json`;
+}
+</script>
 </body>
 </html>
