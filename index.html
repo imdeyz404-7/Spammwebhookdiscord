@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZYREX Executor</title>
+<title>ZYREX EXECUTOR</title>
 <style>
 body{margin:0;font-family:Arial;background:#020617;color:#fff}
 .card{max-width:420px;margin:20px auto;background:#020617;padding:20px;border-radius:16px;box-shadow:0 0 30px rgba(0,0,0,.6)}
@@ -13,6 +13,7 @@ button{font-weight:bold;cursor:pointer}
 .login{background:#7c3aed;color:#fff}
 .start{background:#22c55e}
 .stop{background:#ef4444}
+.del{background:#ef4444;color:#fff;padding:6px 10px;border-radius:8px}
 .status{text-align:center;font-weight:bold;margin-top:10px}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);padding:12px 20px;border-radius:12px;display:none}
 </style>
@@ -39,13 +40,18 @@ button{font-weight:bold;cursor:pointer}
 
 <div class="card">
 <h2>🛠 Admin Panel</h2>
+<button class="login" onclick="toggleAdmin()">OPEN / CLOSE ADMIN</button>
+
+<div id="adminBox" style="display:none">
 <input id="adminPass" placeholder="Admin Password">
 <button class="login" onclick="adminLogin()">LOGIN</button>
 
 <div id="adminPanel" style="display:none">
+<input id="customKey" placeholder="Custom Key (opsional)">
 <input id="expireDays" type="number" placeholder="Expired (hari)">
 <button class="unlock" onclick="createKey()">CREATE KEY</button>
 <div id="keyList"></div>
+</div>
 </div>
 </div>
 
@@ -67,26 +73,48 @@ function toast(msg,ok=true){
  setTimeout(()=>t.style.display="none",2000);
 }
 
+function toggleAdmin(){
+ adminBox.style.display=adminBox.style.display==="none"?"block":"none";
+}
+
 function adminLogin(){
  if(adminPass.value!==ADMIN_PASSWORD)return toast("Admin salah",false);
- adminPanel.style.display="block";toast("Admin login");
+ adminPanel.style.display="block";
+ toast("Admin login");
  renderKeyList();
 }
 
 function createKey(){
- const d=parseInt(expireDays.value);
- if(!d||d<1)return toast("Hari invalid",false);
- const key="ZYREX-"+Math.random().toString(36).substring(2,8).toUpperCase();
- const exp=Date.now()+d*86400000;
- const k=getKeys();k.push({key:key,expire:exp});saveKeys(k);
- toast("Key dibuat");renderKeyList();
+ const days=parseInt(expireDays.value);
+ if(!days||days<1)return toast("Hari invalid",false);
+ let key=customKey.value.trim();
+ if(!key) key="ZYREX-"+Math.random().toString(36).substring(2,8).toUpperCase();
+ const exp=Date.now()+days*86400000;
+ let k=getKeys();
+ if(k.find(x=>x.key===key))return toast("Key sudah ada",false);
+ k.push({key:key,expire:exp});
+ saveKeys(k);
+ toast("Key dibuat");
+ customKey.value="";expireDays.value="";
+ renderKeyList();
+}
+
+function deleteKey(key){
+ let k=getKeys().filter(x=>x.key!==key);
+ saveKeys(k);
+ toast("Key dihapus");
+ renderKeyList();
 }
 
 function renderKeyList(){
  keyList.innerHTML="";
  getKeys().forEach(k=>{
   const s=Math.ceil((k.expire-Date.now())/86400000);
-  keyList.innerHTML+=`<b>${k.key}</b><br>Expired: ${s>0?s+" hari":"EXPIRED"}<hr>`;
+  keyList.innerHTML+=`<div style="border:1px solid #1e293b;padding:8px;border-radius:10px;margin-top:8px">
+  <b>${k.key}</b><br>
+  Expired: ${s>0?s+" hari":"EXPIRED"}<br>
+  <button class="del" onclick="deleteKey('${k.key}')">DELETE</button>
+  </div>`;
  });
 }
 
