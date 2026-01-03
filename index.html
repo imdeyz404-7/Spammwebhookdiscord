@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZYREX Executor</title>
+
+<style>
+*{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif}
+body{
+margin:0;
+background:linear-gradient(180deg,#020617,#020617);
+color:#fff;
+padding:20px
+}
+.card{
+max-width:420px;
+margin:20px auto;
+background:#020617;
+border-radius:16px;
+padding:20px;
+box-shadow:0 0 40px rgba(0,0,0,.5)
+}
+h2{text-align:center;margin-bottom:15px}
+input,button{
+width:100%;
+padding:14px;
+margin-top:10px;
+border:none;
+border-radius:12px;
+font-size:15px
+}
+input{background:#020617;color:#fff;border:1px solid #1e293b}
+button{cursor:pointer;font-weight:bold}
+.unlock{background:#2563eb;color:#fff}
+.start{background:#22c55e}
+.stop{background:#ef4444}
+.status{text-align:center;margin-top:10px;font-weight:bold}
+.valid{color:#22c55e}
+.invalid{color:#ef4444}
+.toast{
+position:fixed;
+bottom:20px;
+left:50%;
+transform:translateX(-50%);
+background:#020617;
+padding:12px 20px;
+border-radius:10px;
+display:none;
+border:1px solid #1e293b
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+<h2>🔐 Key System</h2>
+<input id="keyInput" placeholder="Masukkan Key">
+<button class="unlock" onclick="login()">UNLOCK</button>
+<div id="keyStatus" class="status"></div>
+<div id="expiredText" style="text-align:center;font-size:14px;margin-top:5px"></div>
+</div>
+
+<div class="card" id="executor" style="display:none">
+<h2>🚀 Executor</h2>
+<input id="url" placeholder="Webhook URL">
+<input id="msg" placeholder="Pesan">
+<input id="delay" type="number" value="2000">
+<button class="start" onclick="start()">START</button>
+<button class="stop" onclick="stop()">STOP</button>
+<div id="runStatus" class="status">OFF</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const KEY_URL = "https://raw.githubusercontent.com/imdeyz404-7/key-database/main/keys.json";
+let interval=null;
+
+function toast(msg){
+const t=document.getElementById("toast");
+t.innerText=msg;
+t.style.display="block";
+setTimeout(()=>t.style.display="none",2500);
+}
+
+async function login(){
+const key=document.getElementById("keyInput").value.trim();
+if(!key)return toast("Masukkan key!");
+const res=await fetch(KEY_URL);
+const data=await res.json();
+
+if(!data[key]){
+document.getElementById("keyStatus").innerHTML="KEY INVALID";
+document.getElementById("keyStatus").className="status invalid";
+return toast("Key tidak valid");
+}
+
+const exp=new Date(data[key]);
+const now=new Date();
+if(now>exp){
+document.getElementById("keyStatus").innerHTML="KEY EXPIRED";
+document.getElementById("keyStatus").className="status invalid";
+return toast("Key expired");
+}
+
+document.getElementById("executor").style.display="block";
+document.getElementById("keyStatus").innerHTML="KEY VALID";
+document.getElementById("keyStatus").className="status valid";
+document.getElementById("expiredText").innerHTML=
+"Expired: "+exp.toLocaleDateString()+" ("+
+Math.ceil((exp-now)/86400000)+" hari lagi)";
+toast("Login berhasil");
+}
+
+function start(){
+const url=document.getElementById("url").value;
+const msg=document.getElementById("msg").value;
+const delay=parseInt(document.getElementById("delay").value);
+if(!url||!msg)return toast("Isi semua field");
+if(interval)return;
+interval=setInterval(()=>{
+fetch(url,{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({content:msg})
+});
+},delay);
+document.getElementById("runStatus").innerText="ON";
+}
+
+function stop(){
+clearInterval(interval);
+interval=null;
+document.getElementById("runStatus").innerText="OFF";
+}
+</script>
+
+</body>
+</html>
