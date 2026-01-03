@@ -3,202 +3,117 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZYREX EXECUTOR</title>
-
+<title>ZYREX Executor</title>
 <style>
-*{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif}
-body{
-margin:0;
-min-height:100vh;
-background:linear-gradient(180deg,#050b1e,#020617);
-color:#fff;
-display:flex;
-justify-content:center;
-align-items:center;
-padding:20px
-}
-.container{width:100%;max-width:420px}
-.card{
-background:#020617;
-border-radius:18px;
-padding:20px;
-margin-bottom:20px;
-box-shadow:0 0 30px rgba(0,0,0,.6)
-}
-h2{text-align:center;margin-bottom:15px}
-input,button{
-width:100%;
-padding:14px;
-margin-top:10px;
-border-radius:12px;
-border:none;
-outline:none;
-font-size:15px
-}
-input{background:#020617;color:#fff;border:1px solid #1e293b}
-button{cursor:pointer;font-weight:bold}
+body{margin:0;font-family:Arial;background:#020617;color:#fff}
+.card{max-width:420px;margin:20px auto;background:#020617;padding:20px;border-radius:16px;box-shadow:0 0 30px rgba(0,0,0,.6)}
+input,button{width:100%;padding:14px;margin-top:10px;border-radius:12px;border:none;font-size:15px}
+button{font-weight:bold;cursor:pointer}
 .unlock{background:#2563eb;color:#fff}
+.login{background:#7c3aed;color:#fff}
 .start{background:#22c55e}
 .stop{background:#ef4444}
-.adminBtn{background:#9333ea}
-.status{text-align:center;margin-top:10px;font-weight:bold}
-.valid{color:#22c55e}
-.invalid{color:#ef4444}
-.hidden{display:none}
-
-.toast{
-position:fixed;
-bottom:25px;
-left:50%;
-transform:translateX(-50%);
-background:#020617;
-border:1px solid #1e293b;
-padding:12px 18px;
-border-radius:12px;
-display:none;
-font-weight:bold
-}
+.status{text-align:center;font-weight:bold;margin-top:10px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);padding:12px 20px;border-radius:12px;display:none}
 </style>
 </head>
-
 <body>
-<div class="container">
 
-<!-- KEY SYSTEM -->
 <div class="card">
 <h2>🔐 Key System</h2>
 <input id="keyInput" placeholder="Masukkan Key">
-<button class="unlock" onclick="login()">UNLOCK</button>
+<button class="unlock" onclick="loginKey()">UNLOCK</button>
 <div id="keyStatus" class="status"></div>
-<div id="expireInfo" class="status"></div>
+<div id="expireText" class="status"></div>
 </div>
 
-<!-- EXECUTOR -->
-<div class="card hidden" id="executor">
+<div class="card" id="executor" style="display:none">
 <h2>🚀 Executor</h2>
-<input id="webhook" placeholder="Webhook URL">
-<input id="message" placeholder="Pesan">
+<input id="url" placeholder="Webhook URL">
+<input id="msg" placeholder="Pesan">
 <input id="delay" type="number" value="2000">
 <button class="start" onclick="start()">START</button>
 <button class="stop" onclick="stop()">STOP</button>
 <div id="runStatus" class="status">OFF</div>
 </div>
 
-<!-- ADMIN -->
 <div class="card">
 <h2>🛠 Admin Panel</h2>
 <input id="adminPass" placeholder="Admin Password">
-<button class="adminBtn" onclick="adminLogin()">LOGIN</button>
+<button class="login" onclick="adminLogin()">LOGIN</button>
 
-<div id="adminPanel" class="hidden">
-<input id="newKey" placeholder="Key baru">
-<input id="days" type="number" placeholder="Expired (hari)">
+<div id="adminPanel" style="display:none">
+<input id="expireDays" type="number" placeholder="Expired (hari)">
 <button class="unlock" onclick="createKey()">CREATE KEY</button>
-<div id="adminStatus" class="status"></div>
+<div id="keyList"></div>
 </div>
 </div>
 
-</div>
-
-<div class="toast" id="toast"></div>
+<div id="toast" class="toast"></div>
 
 <script>
-// ================= CONFIG =================
-const ADMIN_PASSWORD = "admin123"; 
-const KEY_URL = "https://raw.githubusercontent.com/imdeyz404-7/Spammwebhookdiscord/main/keys.json";
-// GANTI ^ DENGAN URL RAW keys.json KAMU
-// ==========================================
-
-let keysData=[];
+const ADMIN_PASSWORD="admin123";
+const STORAGE_KEY="ZYREX_KEYS";
 let interval=null;
 
-// Toast
-function toast(msg){
-const t=document.getElementById("toast");
-t.innerText=msg;
-t.style.display="block";
-setTimeout(()=>t.style.display="none",2500)
+function getKeys(){return JSON.parse(localStorage.getItem(STORAGE_KEY))||[]}
+function saveKeys(k){localStorage.setItem(STORAGE_KEY,JSON.stringify(k))}
+
+function toast(msg,ok=true){
+ const t=document.getElementById("toast");
+ t.textContent=msg;
+ t.style.background=ok?"#22c55e":"#ef4444";
+ t.style.display="block";
+ setTimeout(()=>t.style.display="none",2000);
 }
 
-// Load keys
-async function loadKeys(){
-const res=await fetch(KEY_URL+"?t="+Date.now());
-const data=await res.json();
-keysData=data.keys;
-}
-loadKeys();
-
-// Login key
-function login(){
-const key=document.getElementById("keyInput").value.trim();
-const now=new Date();
-
-const found=keysData.find(k=>k.key===key);
-if(!found){
-document.getElementById("keyStatus").innerHTML="<span class='invalid'>KEY INVALID</span>";
-toast("Key tidak valid");
-return;
-}
-
-const exp=new Date(found.expire+"T23:59:59");
-const diff=Math.ceil((exp-now)/(1000*60*60*24));
-
-if(diff<=0){
-document.getElementById("keyStatus").innerHTML="<span class='invalid'>KEY EXPIRED</span>";
-document.getElementById("expireInfo").innerText="Expired: "+found.expire;
-toast("Key expired");
-return;
-}
-
-document.getElementById("keyStatus").innerHTML="<span class='valid'>KEY VALID</span>";
-document.getElementById("expireInfo").innerText=`Expired: ${found.expire} (${diff} hari lagi)`;
-document.getElementById("executor").classList.remove("hidden");
-toast("Login berhasil");
-}
-
-// Executor
-function start(){
-if(interval) return;
-document.getElementById("runStatus").innerText="RUNNING";
-interval=setInterval(()=>{
-console.log("Send webhook (simulasi)");
-},Number(document.getElementById("delay").value));
-toast("Executor started");
-}
-function stop(){
-clearInterval(interval);
-interval=null;
-document.getElementById("runStatus").innerText="OFF";
-toast("Executor stopped");
-}
-
-// Admin
 function adminLogin(){
-const pass=document.getElementById("adminPass").value;
-if(pass!==ADMIN_PASSWORD){
-toast("Password admin salah");
-return;
-}
-document.getElementById("adminPanel").classList.remove("hidden");
-toast("Admin login sukses");
+ if(adminPass.value!==ADMIN_PASSWORD)return toast("Admin salah",false);
+ adminPanel.style.display="block";toast("Admin login");
+ renderKeyList();
 }
 
 function createKey(){
-const key=document.getElementById("newKey").value.trim();
-const days=Number(document.getElementById("days").value);
-if(!key||!days){
-toast("Data belum lengkap");
-return;
+ const d=parseInt(expireDays.value);
+ if(!d||d<1)return toast("Hari invalid",false);
+ const key="ZYREX-"+Math.random().toString(36).substring(2,8).toUpperCase();
+ const exp=Date.now()+d*86400000;
+ const k=getKeys();k.push({key:key,expire:exp});saveKeys(k);
+ toast("Key dibuat");renderKeyList();
 }
-const d=new Date();
-d.setDate(d.getDate()+days);
-const exp=d.toISOString().split("T")[0];
 
-toast("KEY DIBUAT ✔️");
-document.getElementById("adminStatus").innerText=`Key: ${key} | Expired: ${exp}
+function renderKeyList(){
+ keyList.innerHTML="";
+ getKeys().forEach(k=>{
+  const s=Math.ceil((k.expire-Date.now())/86400000);
+  keyList.innerHTML+=`<b>${k.key}</b><br>Expired: ${s>0?s+" hari":"EXPIRED"}<hr>`;
+ });
+}
 
-SALIN & TAMBAHKAN KE keys.json`;
+function loginKey(){
+ const k=getKeys().find(x=>x.key===keyInput.value);
+ if(!k)return toast("Key tidak ada",false);
+ if(Date.now()>k.expire)return toast("Key expired",false);
+ const s=Math.ceil((k.expire-Date.now())/86400000);
+ keyStatus.textContent="KEY VALID";
+ expireText.textContent="Expired "+s+" hari";
+ executor.style.display="block";
+ toast("Login sukses");
+}
+
+function start(){
+ if(interval)return;
+ const u=url.value,m=msg.value,d=parseInt(delay.value);
+ if(!u||!m)return toast("Isi data",false);
+ interval=setInterval(()=>fetch(u,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({content:m})}),d);
+ runStatus.textContent="ON";runStatus.style.color="#22c55e";
+}
+
+function stop(){
+ clearInterval(interval);interval=null;
+ runStatus.textContent="OFF";runStatus.style.color="#ef4444";
 }
 </script>
+
 </body>
 </html>
